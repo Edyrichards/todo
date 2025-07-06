@@ -1,1 +1,422 @@
-import { useSpring, animated } from 'react-spring';\nimport { useDrag } from '@use-gesture/react';\nimport { useState } from 'react';\nimport { CheckCircle2, Trash2, Clock, Edit3 } from 'lucide-react';\nimport { Task } from '../../shared/types';\nimport { cn } from '@/lib/utils';\n\ninterface SwipeableTaskCardProps {\n  children: React.ReactNode;\n  task: Task;\n  onComplete: () => void;\n  onDelete: () => void;\n  onEdit: () => void;\n  onPostpone?: () => void;\n}\n\nconst SWIPE_THRESHOLD = 80;\nconst COMPLETE_THRESHOLD = 150;\nconst DELETE_THRESHOLD = 150;\n\nexport function SwipeableTaskCard({ \n  children, \n  task, \n  onComplete, \n  onDelete, \n  onEdit,\n  onPostpone \n}: SwipeableTaskCardProps) {\n  const [action, setAction] = useState<'complete' | 'delete' | 'postpone' | null>(null);\n\n  const [{ x, opacity, scale }, api] = useSpring(() => ({\n    x: 0,\n    opacity: 1,\n    scale: 1,\n    config: { tension: 300, friction: 30 }\n  }));\n\n  const bind = useDrag(\n    ({ \n      movement: [mx], \n      velocity: [vx], \n      direction: [dx], \n      down, \n      cancel,\n      tap,\n      elapsedTime \n    }) => {\n      // Handle tap for edit\n      if (tap && elapsedTime < 200) {\n        onEdit();\n        return;\n      }\n\n      // Determine action based on swipe direction and distance\n      let newAction: typeof action = null;\n      \n      if (Math.abs(mx) > SWIPE_THRESHOLD && down) {\n        if (mx > 0) {\n          // Swipe right - complete or postpone\n          newAction = mx > COMPLETE_THRESHOLD ? 'complete' : 'postpone';\n        } else {\n          // Swipe left - delete\n          newAction = Math.abs(mx) > DELETE_THRESHOLD ? 'delete' : null;\n        }\n        \n        // Haptic feedback on action change\n        if (newAction !== action && 'vibrate' in navigator) {\n          navigator.vibrate(50);\n        }\n        \n        setAction(newAction);\n      } else if (!down) {\n        setAction(null);\n      }\n\n      // Execute action on release with sufficient velocity or distance\n      if (!down) {\n        const shouldExecute = Math.abs(mx) > SWIPE_THRESHOLD * 1.5 || Math.abs(vx) > 0.5;\n        \n        if (shouldExecute && action) {\n          // Haptic feedback for action execution\n          if ('vibrate' in navigator) {\n            navigator.vibrate([100, 50, 100]);\n          }\n          \n          // Execute the action with animation\n          if (action === 'complete') {\n            api.start({ \n              x: window.innerWidth, \n              opacity: 0, \n              scale: 0.8,\n              onRest: onComplete \n            });\n            return;\n          } else if (action === 'delete') {\n            api.start({ \n              x: -window.innerWidth, \n              opacity: 0, \n              scale: 0.8,\n              onRest: onDelete \n            });\n            return;\n          } else if (action === 'postpone' && onPostpone) {\n            onPostpone();\n          }\n        }\n        \n        // Reset position if action not executed\n        api.start({ x: 0, opacity: 1, scale: 1 });\n      } else {\n        // Update position while dragging\n        const clampedX = Math.max(-window.innerWidth * 0.3, Math.min(window.innerWidth * 0.3, mx));\n        api.start({ \n          x: clampedX, \n          immediate: true,\n          scale: 1 - Math.abs(clampedX) / (window.innerWidth * 2)\n        });\n      }\n    },\n    {\n      axis: 'x',\n      bounds: { left: -window.innerWidth * 0.3, right: window.innerWidth * 0.3 },\n      rubberband: true,\n      filterTaps: true,\n      preventScroll: true,\n    }\n  );\n\n  const getActionColor = () => {\n    switch (action) {\n      case 'complete':\n        return 'bg-green-500/20 border-green-500/30';\n      case 'delete':\n        return 'bg-red-500/20 border-red-500/30';\n      case 'postpone':\n        return 'bg-yellow-500/20 border-yellow-500/30';\n      default:\n        return '';\n    }\n  };\n\n  const getActionIcon = () => {\n    switch (action) {\n      case 'complete':\n        return <CheckCircle2 size={24} className=\"text-green-500\" />;\n      case 'delete':\n        return <Trash2 size={24} className=\"text-red-500\" />;\n      case 'postpone':\n        return <Clock size={24} className=\"text-yellow-500\" />;\n      default:\n        return null;\n    }\n  };\n\n  const getActionText = () => {\n    switch (action) {\n      case 'complete':\n        return 'Complete Task';\n      case 'delete':\n        return 'Delete Task';\n      case 'postpone':\n        return 'Postpone';\n      default:\n        return '';\n    }\n  };\n\n  return (\n    <div className=\"relative overflow-hidden\">\n      {/* Background Actions */}\n      {action && (\n        <div className={cn(\n          'absolute inset-0 flex items-center justify-center',\n          'transition-colors duration-200',\n          action === 'complete' && 'bg-green-500/10',\n          action === 'delete' && 'bg-red-500/10',\n          action === 'postpone' && 'bg-yellow-500/10'\n        )}>\n          <div className=\"flex flex-col items-center gap-1\">\n            {getActionIcon()}\n            <span className={cn(\n              'text-xs font-medium',\n              action === 'complete' && 'text-green-600 dark:text-green-400',\n              action === 'delete' && 'text-red-600 dark:text-red-400',\n              action === 'postpone' && 'text-yellow-600 dark:text-yellow-400'\n            )}>\n              {getActionText()}\n            </span>\n          </div>\n        </div>\n      )}\n      \n      {/* Swipe Indicators */}\n      <div className=\"absolute left-4 top-1/2 -translate-y-1/2 opacity-30\">\n        <CheckCircle2 size={20} className=\"text-green-500\" />\n      </div>\n      <div className=\"absolute right-4 top-1/2 -translate-y-1/2 opacity-30\">\n        <Trash2 size={20} className=\"text-red-500\" />\n      </div>\n      \n      {/* Main Card */}\n      <animated.div\n        {...bind()}\n        style={{\n          x,\n          opacity,\n          scale,\n          touchAction: 'pan-y'\n        }}\n        className={cn(\n          'relative z-10 cursor-grab active:cursor-grabbing',\n          'select-none touch-manipulation',\n          action && getActionColor()\n        )}\n      >\n        {children}\n      </animated.div>\n      \n      {/* Swipe Instructions (show only for first few tasks) */}\n      {task.createdAt > new Date(Date.now() - 5 * 60 * 1000) && ( // Show for tasks created in last 5 minutes\n        <div className=\"absolute top-2 right-2 z-20\">\n          <div className=\"bg-primary/10 text-primary text-xs px-2 py-1 rounded-full animate-pulse\">\n            Swipe →\n          </div>\n        </div>\n      )}\n    </div>\n  );\n}"
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useGesture } from '@use-gesture/react';
+import { useSpring, animated, config } from 'react-spring';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  Calendar,
+  Clock,
+  Edit3,
+  Trash2,
+  Star,
+  CheckCircle2,
+  X,
+  ArrowRight,
+  ArrowLeft
+} from 'lucide-react';
+import { Task, TaskPriority } from '../../shared/types';
+import { usePWATodoStore } from '../store/todoStorePWA';
+import { format, isToday, isPast, isTomorrow } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { highlightSearchTerm } from '../lib/textUtils';
+import { triggerHaptic, isMobileDevice } from '../lib/gestureUtils';
+
+interface SwipeableTaskCardProps {
+  task: Task;
+  index: number;
+  isSelected: boolean;
+  searchTerm?: string;
+  onEditTask: (taskId: string) => void;
+  className?: string;
+}
+
+const priorityColors = {
+  high: 'text-red-500 bg-red-500/10',
+  medium: 'text-yellow-500 bg-yellow-500/10',
+  low: 'text-green-500 bg-green-500/10'
+};
+
+const priorityLabels = {
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low'
+};
+
+// Swipe action configurations
+const SWIPE_THRESHOLD = 100;
+const MAX_SWIPE = 200;
+
+export function SwipeableTaskCard({ 
+  task, 
+  index, 
+  isSelected, 
+  searchTerm, 
+  onEditTask,
+  className 
+}: SwipeableTaskCardProps) {
+  const { toggleTask, deleteTask, categories } = usePWATodoStore();
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [swipeAction, setSwipeAction] = useState<'complete' | 'delete' | null>(null);
+
+  // Spring animation for the card
+  const [{ x, opacity, scale }, api] = useSpring(() => ({ 
+    x: 0, 
+    opacity: 1, 
+    scale: 1 
+  }));
+
+  // Gesture handling
+  const bind = useGesture({
+    onDrag: ({ down, movement: [mx], velocity: [vx], cancel, canceled }) => {
+      if (canceled || !isMobileDevice()) return;
+
+      const isCompleted = task.status === 'completed';
+      
+      if (down) {
+        // Determine swipe action based on direction
+        if (mx > SWIPE_THRESHOLD) {
+          setSwipeAction('complete');
+          triggerHaptic('light');
+        } else if (mx < -SWIPE_THRESHOLD) {
+          setSwipeAction('delete');
+          triggerHaptic('light');
+        } else {
+          setSwipeAction(null);
+        }
+
+        // Limit swipe distance
+        const clampedX = Math.max(-MAX_SWIPE, Math.min(MAX_SWIPE, mx));
+        api.start({ 
+          x: clampedX, 
+          immediate: true,
+          scale: 1 - Math.abs(clampedX) / (MAX_SWIPE * 4) // Slight scale down while swiping
+        });
+        
+        setIsRevealed(Math.abs(clampedX) > SWIPE_THRESHOLD);
+      } else {
+        // Handle swipe completion
+        if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.5) {
+          if (mx > SWIPE_THRESHOLD && !isCompleted) {
+            // Swipe right to complete
+            handleComplete();
+          } else if (mx < -SWIPE_THRESHOLD) {
+            // Swipe left to delete
+            handleDelete();
+          } else {
+            // Spring back
+            resetPosition();
+          }
+        } else {
+          // Spring back
+          resetPosition();
+        }
+      }
+    },
+    onTap: ({ event }) => {
+      // Prevent tap when card is revealed
+      if (isRevealed) {
+        event.stopPropagation();
+        resetPosition();
+        return;
+      }
+      
+      // Handle normal tap
+      onEditTask(task.id);
+    }
+  }, {
+    drag: {
+      axis: 'x',
+      filterTaps: true,
+      threshold: 10,
+    },
+  });
+
+  const handleComplete = async () => {
+    triggerHaptic('medium');
+    
+    // Animate completion
+    await api.start({ 
+      x: window.innerWidth, 
+      opacity: 0,
+      config: config.wobbly 
+    });
+    
+    toggleTask(task.id);
+    resetPosition();
+  };
+
+  const handleDelete = async () => {
+    triggerHaptic('heavy');
+    
+    // Animate deletion
+    await api.start({ 
+      x: -window.innerWidth, 
+      opacity: 0, 
+      scale: 0.8,
+      config: config.stiff 
+    });
+    
+    deleteTask(task.id);
+  };
+
+  const resetPosition = () => {
+    setIsRevealed(false);
+    setSwipeAction(null);
+    api.start({ 
+      x: 0, 
+      opacity: 1, 
+      scale: 1,
+      config: config.wobbly 
+    });
+  };
+
+  const getCategoryInfo = (categoryId?: string) => {
+    if (!categoryId) return null;
+    return categories.find(cat => cat.id === categoryId);
+  };
+
+  const formatDueDate = (dueDate: Date) => {
+    if (isToday(dueDate)) return 'Today';
+    if (isTomorrow(dueDate)) return 'Tomorrow';
+    if (isPast(dueDate)) return `Overdue • ${format(dueDate, 'MMM d')}`;
+    return format(dueDate, 'MMM d, yyyy');
+  };
+
+  const getDueDateColor = (dueDate: Date) => {
+    if (isPast(dueDate)) return 'text-red-500';
+    if (isToday(dueDate)) return 'text-orange-500';
+    return 'text-muted-foreground';
+  };
+
+  const category = getCategoryInfo(task.categoryId);
+  const isCompleted = task.status === 'completed';
+
+  return (
+    <div className={cn('relative touch-pan-y', className)}>
+      {/* Background Actions */}
+      <AnimatePresence>
+        {isRevealed && (
+          <>
+            {/* Complete Action (Right Swipe) */}
+            {swipeAction === 'complete' && !isCompleted && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-y-0 left-0 flex items-center justify-start pl-6 bg-green-500 rounded-l-lg"
+                style={{ width: `${Math.abs(x.get())}px` }}
+              >
+                <div className="flex items-center gap-2 text-white">
+                  <CheckCircle2 size={20} />
+                  <span className="font-medium">Complete</span>
+                  <ArrowRight size={16} />
+                </div>
+              </motion.div>
+            )}
+
+            {/* Delete Action (Left Swipe) */}
+            {swipeAction === 'delete' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-y-0 right-0 flex items-center justify-end pr-6 bg-red-500 rounded-r-lg"
+                style={{ width: `${Math.abs(x.get())}px` }}
+              >
+                <div className="flex items-center gap-2 text-white">
+                  <ArrowLeft size={16} />
+                  <span className="font-medium">Delete</span>
+                  <Trash2 size={20} />
+                </div>
+              </motion.div>
+            )}
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main Card */}
+      <animated.div
+        {...bind()}
+        style={{
+          x,
+          opacity,
+          scale,
+          touchAction: 'none',
+        }}
+        className="relative z-10"
+      >
+        <motion.div
+          layout
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20, scale: 0.95 }}
+          transition={{ 
+            delay: index * 0.05,
+            duration: 0.3,
+            layout: { duration: 0.2 }
+          }}
+          className={cn(
+            'group cursor-pointer select-none',
+            isSelected && 'ring-2 ring-primary ring-offset-2'
+          )}
+        >
+          <Card className={cn(
+            'transition-all duration-200 hover:shadow-md border-border/50 bg-background',
+            isCompleted && 'opacity-60 bg-muted/30',
+            task.priority === 'high' && !isCompleted && 'border-l-4 border-l-red-500',
+            task.priority === 'medium' && !isCompleted && 'border-l-4 border-l-yellow-500',
+            isSelected && 'border-primary'
+          )}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                {/* Checkbox */}
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="mt-1"
+                >
+                  <Checkbox
+                    checked={isCompleted}
+                    onCheckedChange={() => toggleTask(task.id)}
+                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                </motion.div>
+
+                {/* Task Content */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  {/* Title and Priority */}
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className={cn(
+                      'font-medium leading-tight',
+                      isCompleted && 'line-through text-muted-foreground'
+                    )}>
+                      {searchTerm ? highlightSearchTerm(task.title, searchTerm) : task.title}
+                    </h3>
+                    
+                    {/* Priority Badge */}
+                    {task.priority !== 'low' && (
+                      <Badge variant="outline" className={cn('text-xs', priorityColors[task.priority])}>
+                        <Star size={10} className="mr-1" />
+                        {priorityLabels[task.priority]}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  {task.description && (
+                    <p className={cn(
+                      'text-sm text-muted-foreground',
+                      isCompleted && 'line-through'
+                    )}>
+                      {searchTerm ? highlightSearchTerm(task.description, searchTerm) : task.description}
+                    </p>
+                  )}
+
+                  {/* Meta Information */}
+                  <div className="flex items-center gap-4 text-xs">
+                    {/* Category */}
+                    {category && (
+                      <div className="flex items-center gap-1">
+                        <div 
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        <span className="text-muted-foreground">{category.name}</span>
+                      </div>
+                    )}
+
+                    {/* Due Date */}
+                    {task.dueDate && (
+                      <div className={cn(
+                        'flex items-center gap-1',
+                        getDueDateColor(new Date(task.dueDate))
+                      )}>
+                        <Calendar size={12} />
+                        <span>{formatDueDate(new Date(task.dueDate))}</span>
+                      </div>
+                    )}
+
+                    {/* Estimated Time */}
+                    {task.estimatedTime && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock size={12} />
+                        <span>{task.estimatedTime}m</span>
+                      </div>
+                    )}
+
+                    {/* Subtasks Progress */}
+                    {task.subtasks.length > 0 && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <CheckCircle2 size={12} />
+                        <span>
+                          {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tags */}
+                  {task.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {task.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          #{searchTerm ? highlightSearchTerm(tag, searchTerm) : tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop Actions */}
+                {!isMobileDevice() && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditTask(task.id);
+                      }}
+                    >
+                      <Edit3 size={14} />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-destructive/10 text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteTask(task.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </animated.div>
+
+      {/* Mobile Gesture Hint */}
+      {isMobileDevice() && !isRevealed && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2 }}
+          className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground text-center"
+        >
+          <span className="bg-background/80 px-2 py-1 rounded">
+            Swipe → complete • ← delete
+          </span>
+        </motion.div>
+      )}
+    </div>
+  );
+}

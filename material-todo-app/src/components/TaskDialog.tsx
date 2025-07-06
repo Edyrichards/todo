@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { AnimatedButton } from '@/components/ui/animated-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -20,7 +21,7 @@ import {
   Save
 } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus } from '../../shared/types';
-import { useTodoStore } from '../store/todoStore';
+import { usePWATodoStore } from '../store/todoStorePWA';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,8 @@ interface TaskDialogProps {
   isOpen: boolean;
   onClose: () => void;
   taskId?: string | null;
+  defaultDueDate?: Date;
+  defaultValues?: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>;
 }
 
 const priorityOptions: { value: TaskPriority; label: string; color: string }[] = [
@@ -37,8 +40,8 @@ const priorityOptions: { value: TaskPriority; label: string; color: string }[] =
   { value: 'high', label: 'High Priority', color: 'text-red-500' }
 ];
 
-export function TaskDialog({ isOpen, onClose, taskId }: TaskDialogProps) {
-  const { tasks, categories, addTask, updateTask } = useTodoStore();
+export function TaskDialog({ isOpen, onClose, taskId, defaultDueDate, defaultValues }: TaskDialogProps) {
+  const { tasks, categories, addTask, updateTask } = usePWATodoStore();
   
   // Form state
   const [title, setTitle] = useState('');
@@ -51,6 +54,7 @@ export function TaskDialog({ isOpen, onClose, taskId }: TaskDialogProps) {
   const [newTag, setNewTag] = useState('');
   const [subtasks, setSubtasks] = useState<Array<{ id: string; title: string; completed: boolean }>>([]);
   const [newSubtask, setNewSubtask] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Get existing task if editing
   const existingTask = taskId ? tasks.find(t => t.id === taskId) : null;
@@ -74,48 +78,60 @@ export function TaskDialog({ isOpen, onClose, taskId }: TaskDialogProps) {
           completed: st.completed
         })));
       } else {
-        // Reset form for new task
-        setTitle('');
-        setDescription('');
-        setPriority('medium');
-        setCategoryId(undefined);
-        setDueDate(undefined);
-        setEstimatedTime('');
-        setTags([]);
-        setSubtasks([]);
+        // Reset form for new task with defaults
+        setTitle(defaultValues?.title || '');
+        setDescription(defaultValues?.description || '');
+        setPriority(defaultValues?.priority || 'medium');
+        setCategoryId(defaultValues?.categoryId);
+        setDueDate(defaultDueDate || defaultValues?.dueDate ? new Date(defaultValues.dueDate!) : undefined);
+        setEstimatedTime(defaultValues?.estimatedTime?.toString() || '');
+        setTags(defaultValues?.tags || []);
+        setSubtasks(defaultValues?.subtasks?.map(st => ({
+          id: st.id,
+          title: st.title,
+          completed: st.completed
+        })) || []);
       }
       setNewTag('');
       setNewSubtask('');
     }
-  }, [isOpen, existingTask]);
+  }, [isOpen, existingTask, defaultDueDate, defaultValues]);
 
-  const handleSave = () => {
-    if (!title.trim()) return;
+  const handleSave = async () => {
+    if (!title.trim() || isLoading) return;
 
-    const taskData = {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      priority,
-      status: (existingTask?.status || 'pending') as TaskStatus,
-      categoryId,
-      dueDate,
-      estimatedTime: estimatedTime ? parseInt(estimatedTime) : undefined,
-      tags,
-      subtasks: subtasks.map(st => ({
-        id: st.id,
-        title: st.title,
-        completed: st.completed,
-        createdAt: new Date()
-      }))
-    };
+    setIsLoading(true);
+    
+    try {
+      const taskData = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        priority,
+        status: (existingTask?.status || 'pending') as TaskStatus,
+        categoryId,
+        dueDate,
+        estimatedTime: estimatedTime ? parseInt(estimatedTime) : undefined,
+        tags,
+        subtasks: subtasks.map(st => ({
+          id: st.id,
+          title: st.title,
+          completed: st.completed,
+          createdAt: new Date()
+        }))
+      };
 
-    if (isEditing && taskId) {
-      updateTask(taskId, taskData);
-    } else {
-      addTask(taskData);
+      if (isEditing && taskId) {
+        await updateTask(taskId, taskData);
+      } else {
+        await addTask(taskData);
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Failed to save task:', error);
+    } finally {
+      setIsLoading(false);
     }
-
-    onClose();
   };
 
   const addTag = () => {
@@ -408,19 +424,25 @@ export function TaskDialog({ isOpen, onClose, taskId }: TaskDialogProps) {
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" onClick={onClose}>
+            <AnimatedButton 
+              variant="outline" 
+              onClick={onClose}
+              disabled={isLoading}
+              animationType="hover"
+            >
               Cancel
-            </Button>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                onClick={handleSave}
-                disabled={!title.trim()}
-                className="gap-2"
-              >
-                <Save size={16} />
-                {isEditing ? 'Update Task' : 'Create Task'}
-              </Button>
-            </motion.div>
+            </AnimatedButton>
+            <AnimatedButton
+              onClick={handleSave}
+              disabled={!title.trim() || isLoading}
+              isLoading={isLoading}
+              loadingText={isEditing ? 'Updating...' : 'Creating...'}
+              animationType="elastic"
+              className="gap-2"
+            >
+              <Save size={16} />
+              {isEditing ? 'Update Task' : 'Create Task'}
+            </AnimatedButton>
           </div>
         </motion.div>
       </DialogContent>
