@@ -119,7 +119,9 @@ export class AuthService {
         `INSERT INTO users (email, name, password_hash, email_verified) 
          VALUES ($1, $2, $3, $4) 
          RETURNING id, email, name, avatar, email_verified, last_login_at, created_at, updated_at`,
-        [input.email.toLowerCase(), input.name, passwordHash, false]
+        // TODO: PHASE 4 - Revert email_verified to false and implement full email verification flow.
+        // For Phase 1, setting to true to allow immediate login after registration.
+        [input.email.toLowerCase(), input.name, passwordHash, true]
       );
 
       const user = users[0];

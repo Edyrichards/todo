@@ -15,11 +15,13 @@
  * See AppEnhanced.tsx for the enhanced implementation
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeInUp, scaleIn, slideInLeft } from './lib/animations';
 import { useTodoStore } from './store/todoStore';
-import { useWebSocketStore, useWebSocketConnection, initializeWebSocket } from './store/websocketStore';
+import { useWebSocketStore, useWebSocketConnection, initializeWebSocket, cleanupWebSocket } from './store/websocketStore';
+import { authService, setAuthToken } from './services/apiService';
+import { AuthPage } from './pages/AuthPage'; // Create this page
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { TaskList } from './components/TaskList';
@@ -41,8 +43,15 @@ import { Toaster } from '@/components/ui/sonner';
 type AppView = 'tasks' | 'calendar' | 'kanban';
 
 function AppContent() {
-  const { tasks, getFilteredTasks, isLoading = false } = useTodoStore();
-  const { isConnected, isAuthenticated } = useWebSocketConnection();
+  const { tasks, getFilteredTasks, isLoading: isLoadingTasks, clearLocalTasks } = useTodoStore();
+  const { isConnected, isAuthenticated: isWsAuthenticated, updateToken: updateWsToken } = useWebSocketStore(state => ({
+    isConnected: state.connectionState.status === 'connected' || state.connectionState.status === 'authenticated',
+    isAuthenticated: state.connectionState.status === 'authenticated',
+    updateToken: state.client?.updateToken,
+  }));
+
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [defaultDueDate, setDefaultDueDate] = useState<Date | undefined>();
@@ -53,23 +62,57 @@ function AppContent() {
   // Initialize mobile safe area support
   useSafeArea();
   
-  // Initialize WebSocket connection
+  const { theme, toggleTheme } = useTheme();
+
+  // Initialize mobile safe area support
+  useSafeArea();
+
+  const handleLoginSuccess = useCallback(async (userData: any, token: string) => {
+    setCurrentUser(userData);
+    // Token is already set by setAuthToken in AuthPage, but good to be explicit if needed elsewhere
+    // initializeWebSocket will be called by the effect below once currentUser is set
+    if (updateWsToken) {
+      updateWsToken(token); // Update token for potentially running WS client
+    } else {
+      // If WS client not yet initialized, it will pick up token on init
+      await initializeWebSocket(token, ['default-workspace']);
+    }
+  }, [updateWsToken]);
+
+  // Check auth status on mount and initialize WebSocket
   useEffect(() => {
-    const initWS = async () => {
-      try {
-        // TODO: Get actual auth token from authentication system
-        const token = localStorage.getItem('auth_token');
-        await initializeWebSocket(token || undefined, ['default-workspace']);
-      } catch (error) {
-        console.error('Failed to initialize WebSocket:', error);
+    const checkAuthAndInitWS = async () => {
+      setIsLoadingAuth(true);
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          const user = await authService.fetchMe();
+          setCurrentUser(user);
+          // Initialize WebSocket with the verified token
+          await initializeWebSocket(token, ['default-workspace']); // Ensure workspace IDs are correct
+        } catch (error) {
+          console.error('Token validation failed or no token:', error);
+          setAuthToken(null); // Clear invalid token
+          setCurrentUser(null);
+          cleanupWebSocket(); // Ensure WS is cleaned up if auth fails
+        }
+      } else {
+        setCurrentUser(null);
+        cleanupWebSocket(); // Ensure WS is cleaned up if no token
       }
+      setIsLoadingAuth(false);
     };
+
+    checkAuthAndInitWS();
     
-    initWS();
+    // Cleanup WebSocket on component unmount
+    return () => {
+      cleanupWebSocket();
+    };
   }, []);
   
   const filteredTasks = getFilteredTasks();
-  const showWelcome = !isLoading && tasks.length === 0;
+  const showWelcome = !isLoadingTasks && !currentUser && tasks.length === 0; // Adjust welcome condition
   
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -113,18 +156,26 @@ function AppContent() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
   
-  // Show loading screen while initializing
-  if (isLoading) {
+  // Show loading screen while checking auth or loading tasks
+  if (isLoadingAuth || (!currentUser && isLoadingTasks)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading your tasks...</p>
+          <p className="text-sm text-muted-foreground">
+            {isLoadingAuth ? 'Authenticating...' : 'Loading your tasks...'}
+          </p>
         </div>
       </div>
     );
   }
 
+  // If not authenticated, show AuthPage
+  if (!currentUser) {
+    return <AuthPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // User is authenticated, show main app content
   const handleCreateTask = (dueDate?: Date) => {
     setSelectedTaskId(null);
     setDefaultDueDate(dueDate);

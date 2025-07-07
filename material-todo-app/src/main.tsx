@@ -4,7 +4,7 @@ import './index.css'
 
 // Choose between regular and enhanced app versions
 // Enhanced version includes virtual scrolling, error boundaries, and performance monitoring
-const USE_ENHANCED_APP = process.env.VITE_USE_ENHANCED_APP === 'true' || 
+const USE_ENHANCED_APP = import.meta.env.VITE_USE_ENHANCED_APP === 'true' ||
                          localStorage.getItem('use-enhanced-app') === 'true' ||
                          window.location.search.includes('enhanced=true');
 
