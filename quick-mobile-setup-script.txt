@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# 📱 Quick Mobile Setup Script
+# Run this script to get your todo app running on mobile quickly
+
+set -e
+
+echo "🚀 Setting up Todo App for Mobile Testing..."
+echo
+
+# Check if we're in the right directory
+if [ ! -f "package.json" ]; then
+    echo "❌ Error: No package.json found. Please run this script from either:"
+    echo "   - todo-app-fixed/ (stable version)"
+    echo "   - material-todo-app/ (full-featured version)"
+    exit 1
+fi
+
+# Detect which version we're in
+if grep -q "material-todo-app" package.json 2>/dev/null || [ -f "src/lib/hapticFeedback.ts" ]; then
+    VERSION="Full-Featured"
+    echo "📦 Detected: Material Todo App (Full-Featured Version)"
+else
+    VERSION="Stable"
+    echo "📦 Detected: Todo App Fixed (Stable Version)"
+fi
+
+echo
+
+# Install dependencies
+echo "📥 Installing dependencies..."
+if command -v bun >/dev/null 2>&1; then
+    echo "   Using bun..."
+    bun install
+else
+    echo "   Using npm..."
+    npm install
+fi
+
+echo
+
+# Get network information
+echo "🌐 Network Configuration:"
+echo
+
+# Get IP address
+if command -v hostname >/dev/null 2>&1; then
+    IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+fi
+
+if [ -z "$IP" ]; then
+    if command -v ifconfig >/dev/null 2>&1; then
+        IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | head -1 | awk '{print $2}' | sed 's/addr://')
+    fi
+fi
+
+if [ -z "$IP" ]; then
+    echo "   ⚠️  Could not auto-detect IP address"
+    echo "   Please find your IP manually:"
+    echo "   - Windows: ipconfig"
+    echo "   - Mac/Linux: ifconfig | grep 'inet '"
+    IP="YOUR_IP_ADDRESS"
+else
+    echo "   ✅ Detected IP: $IP"
+fi
+
+echo
+echo "📱 Mobile Access URLs:"
+echo "   Local: http://localhost:5173"
+echo "   Mobile: http://$IP:5173"
+echo
+
+# Create a simple testing checklist
+cat > mobile-testing-checklist.md << EOF
+# 📱 Mobile Testing Checklist
+
+## Connection Test
+- [ ] Can access http://$IP:5173 from mobile browser
+- [ ] App loads completely without errors
+- [ ] Basic navigation works
+
+## Haptic Feedback Tests ($VERSION Version)
+- [ ] Tap any button → Feel haptic feedback
+- [ ] Long press task → Progressive haptics (0.5s, 1s, 1.5s)
+- [ ] Complete task → Success haptic sequence
+
+EOF
+
+if [ "$VERSION" = "Full-Featured" ]; then
+cat >> mobile-testing-checklist.md << EOF
+## Advanced Mobile Features (Full-Featured Only)
+- [ ] Swipe task right → Complete with haptic
+- [ ] Swipe task left → Delete with haptic  
+- [ ] Pull down to refresh → Progressive haptics
+- [ ] FAB long press → Quick actions expand
+- [ ] Virtual scrolling (100+ tasks) → Performance boost haptic
+
+EOF
+fi
+
+cat >> mobile-testing-checklist.md << EOF
+## Platform-Specific Tests
+### iOS
+- [ ] Crisp haptic patterns (not just vibration)
+- [ ] Smooth gesture recognition
+- [ ] Safari compatibility
+
+### Android  
+- [ ] Clear vibration patterns
+- [ ] Chrome compatibility
+- [ ] Touch responsiveness
+
+## Troubleshooting
+If haptics don't work:
+- [ ] Check device haptic/vibration settings
+- [ ] Try HTTPS (use ngrok for iOS)
+- [ ] Disable browser pull-to-refresh
+- [ ] Add app to home screen
+
+## Performance Check
+- [ ] Smooth 60fps animations
+- [ ] No lag during gestures  
+- [ ] Quick response to touch
+- [ ] Memory usage stays reasonable
+EOF
+
+echo "📋 Created mobile-testing-checklist.md"
+echo
+
+# Start the development server
+echo "🚀 Starting development server..."
+echo "   The server will be accessible on your local network"
+echo "   Press Ctrl+C to stop the server"
+echo
+
+# Give user a moment to read
+sleep 2
+
+# Start server with network access
+if command -v bun >/dev/null 2>&1; then
+    echo "Starting with bun..."
+    bun run dev --host 0.0.0.0
+else
+    echo "Starting with npm..."
+    npm run dev -- --host 0.0.0.0
+fi

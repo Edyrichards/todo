@@ -1,0 +1,52 @@
+# Quick Mobile Testing Commands
+# Copy and paste these commands to get your app ready for mobile testing
+
+# 1. Find your local IP address
+
+# On macOS:
+ifconfig | grep "inet " | grep -v 127.0.0.1
+
+# On Linux:
+hostname -I
+
+# On Windows (Command Prompt):
+ipconfig
+
+# Example result: 192.168.1.100
+
+# 2. Navigate to app directory and start server
+
+# Option A: Using todo-app-fixed (recommended)
+cd todo-app-fixed
+bun install
+bun run dev --host
+
+# Option B: Using material-todo-app (if it builds)
+cd material-todo-app
+bun install
+bun run dev --host
+
+# 3. Access from your phone
+# Open browser on phone and go to: http://YOUR_IP:5173
+# Example: http://192.168.1.100:5173
+
+# 4. Test these mobile features:
+# ✅ Swipe left/right on tasks
+# ✅ Long press on tasks  
+# ✅ Pull down to refresh
+# ✅ Double tap to toggle
+# ✅ Check haptic feedback
+# ✅ Test bottom navigation
+# ✅ Try floating action button
+
+# 5. Troubleshooting
+# If can't access from phone:
+# - Check both devices on same WiFi
+# - Temporarily disable firewall
+# - Try different port: bun run dev --host --port 3000
+# - Use phone hotspot instead of WiFi
+
+# If no haptic feedback:
+# - Check phone vibration settings
+# - Try different browser (Chrome recommended)
+# - Enable vibration permissions if prompted

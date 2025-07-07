@@ -1,3 +1,20 @@
+/*
+ * Standard Todo App
+ * 
+ * For enhanced performance features including:
+ * - Virtual scrolling for large task lists (>50 items)
+ * - Comprehensive error boundaries with recovery
+ * - Real-time performance monitoring
+ * - Lazy loading of heavy components
+ * 
+ * Enable enhanced version by:
+ * - Setting VITE_USE_ENHANCED_APP=true in .env
+ * - Adding ?enhanced=true to URL
+ * - Setting localStorage.setItem('use-enhanced-app', 'true')
+ * 
+ * See AppEnhanced.tsx for the enhanced implementation
+ */
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeInUp, scaleIn, slideInLeft } from './lib/animations';

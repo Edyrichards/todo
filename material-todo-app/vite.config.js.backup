@@ -1,0 +1,38 @@
+import path from "path";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+// Custom plugin to inject "built by scout" tag
+function injectBuiltByScoutPlugin() {
+  return {
+    name: 'inject-built-by-scout',
+    transformIndexHtml(html) {
+      const scriptTag = '<script defer src="/scout-tag.js"></script>';
+      return html.replace('</body>', scriptTag + '\n  </body>');
+    }
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), tailwindcss(), injectBuiltByScoutPlugin()],
+  resolve: {
+    alias: {
+      "@": path.resolve(process.cwd(), "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          motion: ['framer-motion'],
+          charts: ['recharts'],
+          utils: ['date-fns', 'clsx', 'tailwind-merge']
+        }
+      }
+    },
+    reportCompressedSize: true
+  }
+});
