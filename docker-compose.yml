@@ -78,6 +78,55 @@ services:
     depends_on:
       - redis
 
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: todo-backend
+    ports:
+      - "${BACKEND_PORT:-3001}:${BACKEND_PORT:-3001}"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - PORT=${BACKEND_PORT:-3001}
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - todo-network
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./material-todo-app
+      dockerfile: Dockerfile
+    container_name: todo-frontend
+    ports:
+      - "80:80" # Assuming frontend serves on port 80 within the container
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_WS_URL=${VITE_WS_URL}
+    volumes:
+      - ./material-todo-app:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - todo-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
