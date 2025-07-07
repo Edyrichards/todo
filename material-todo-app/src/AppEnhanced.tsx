@@ -98,7 +98,8 @@ function AppContent() {
     error,
     toggleTask,
     deleteTask,
-    updateTask
+    updateTask,
+    addTask
   } = useTodoStore();
 
   // WebSocket connection
@@ -258,6 +259,24 @@ function AppContent() {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // Handle voice task creation
+  const handleVoiceTask = (taskData: Partial<Task>) => {
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      title: taskData.title || 'New Task',
+      description: taskData.description || '',
+      completed: false,
+      priority: taskData.priority || 'medium',
+      category: taskData.category || 'general',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      dueDate: taskData.dueDate,
+      ...taskData
+    };
+    
+    addTask(newTask);
   };
 
   // View components with error boundaries
@@ -457,6 +476,7 @@ function AppContent() {
           setEditingTask({} as Task);
           setDefaultDueDate(null);
         }}
+        onVoiceTask={handleVoiceTask}
         currentView={currentView}
         onViewChange={setCurrentView}
       />
@@ -549,6 +569,10 @@ function AppContent() {
           onCreateTask={() => {
             setEditingTask({} as Task);
             setDefaultDueDate(null);
+          }}
+          onVoiceTask={handleVoiceTask}
+          onQuickActions={{
+            voiceTask: () => {/* Voice task handled by component */}
           }}
         />
       )}

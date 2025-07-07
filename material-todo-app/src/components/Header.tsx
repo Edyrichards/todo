@@ -24,25 +24,33 @@ import {
   Code,
   CheckCircle2,
   Calendar,
-  Briefcase
+  Briefcase,
+  Mic
 } from 'lucide-react';
 import { useTodoStore } from '../store/todoStore';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { exportTasksAsJSON, exportTasksAsCSV, exportTasksAsMarkdown } from '../lib/exportUtils';
+import { VoiceRecordingButton } from './ui/voice-recording-button';
+import { VoiceTaskDialog } from './ui/voice-task-dialog';
+import { VoiceTaskResult } from '../services/voice-task-service';
+import { Task } from '../../shared/types';
 
 interface HeaderProps {
   onMenuClick: () => void;
   onCreateTask: () => void;
+  onVoiceTask?: (task: Partial<Task>) => void;
   theme: 'light' | 'dark' | 'system';
   onToggleTheme: () => void;
   currentView?: 'tasks' | 'calendar' | 'kanban';
   onViewChange?: (view: 'tasks' | 'calendar' | 'kanban') => void;
 }
 
-export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme, currentView = 'tasks', onViewChange }: HeaderProps) {
+export function Header({ onMenuClick, onCreateTask, onVoiceTask, theme, onToggleTheme, currentView = 'tasks', onViewChange }: HeaderProps) {
   const { filters, setFilters, getPendingTasksCount, getCompletedTasksCount, tasks, categories } = useTodoStore();
   const [searchValue, setSearchValue] = useState(filters.search || '');
+  const [showVoiceDialog, setShowVoiceDialog] = useState(false);
+  const [voiceResult, setVoiceResult] = useState<VoiceTaskResult | null>(null);
 
   const pendingCount = getPendingTasksCount();
   const completedCount = getCompletedTasksCount();
@@ -75,6 +83,17 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme, curren
         exportTasksAsMarkdown(tasks, categories);
         break;
     }
+  };
+
+  const handleVoiceTaskCreated = (result: VoiceTaskResult) => {
+    setVoiceResult(result);
+    setShowVoiceDialog(true);
+  };
+
+  const handleVoiceTaskConfirm = (task: Partial<Task>) => {
+    onVoiceTask?.(task);
+    setShowVoiceDialog(false);
+    setVoiceResult(null);
   };
 
   return (
@@ -241,6 +260,15 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme, curren
           <Settings size={20} />
         </AnimatedButton>
 
+        {/* Voice Task Button */}
+        {onVoiceTask && (
+          <VoiceRecordingButton
+            variant="default"
+            onTaskCreated={handleVoiceTaskCreated}
+            className="hidden md:flex"
+          />
+        )}
+
         {/* Create Task FAB */}
         <AnimatedButton
           onClick={onCreateTask}
@@ -253,6 +281,17 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme, curren
           <span className="sm:hidden">Add</span>
         </AnimatedButton>
       </div>
+
+      {/* Voice Task Dialog */}
+      {voiceResult && (
+        <VoiceTaskDialog
+          isOpen={showVoiceDialog}
+          onClose={() => setShowVoiceDialog(false)}
+          voiceResult={voiceResult}
+          onConfirm={handleVoiceTaskConfirm}
+          onEdit={() => {/* Handle edit if needed */}}
+        />
+      )}
     </motion.header>
   );
 }

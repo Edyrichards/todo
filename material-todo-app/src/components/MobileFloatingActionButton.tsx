@@ -7,24 +7,37 @@ import {
   Calendar, 
   Tag,
   Clock,
+  Mic,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLongPress, useTouchFeedback, isMobileDevice, triggerHaptic } from '../lib/gestureUtils';
+import { VoiceRecordingButton } from './ui/voice-recording-button';
+import { VoiceTaskDialog } from './ui/voice-task-dialog';
+import { VoiceTaskResult } from '../services/voice-task-service';
+import { Task } from '../../shared/types';
 import { cn } from '@/lib/utils';
 
 interface MobileFloatingActionButtonProps {
   onCreateTask: () => void;
+  onVoiceTask?: (task: Partial<Task>) => void;
   onQuickActions?: {
     addDueDate?: () => void;
     addReminder?: () => void;
     addCategory?: () => void;
     addFromTemplate?: () => void;
+    voiceTask?: () => void;
   };
   className?: string;
 }
 
 const quickActions = [
+  {
+    key: 'voiceTask',
+    icon: Mic,
+    label: 'Voice Task',
+    color: 'bg-red-500 hover:bg-red-600',
+  },
   {
     key: 'addDueDate',
     icon: Calendar,
@@ -53,11 +66,14 @@ const quickActions = [
 
 export function MobileFloatingActionButton({ 
   onCreateTask, 
+  onVoiceTask,
   onQuickActions,
   className 
 }: MobileFloatingActionButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showVoiceDialog, setShowVoiceDialog] = useState(false);
+  const [voiceResult, setVoiceResult] = useState<VoiceTaskResult | null>(null);
 
   // Long press to expand quick actions
   const { bind: longPressBind, style: longPressStyle } = useLongPress({
@@ -83,12 +99,29 @@ export function MobileFloatingActionButton({
   };
 
   const handleQuickAction = (actionKey: string) => {
+    if (actionKey === 'voiceTask') {
+      // Handle voice task specially
+      setIsExpanded(false);
+      return;
+    }
+    
     const action = onQuickActions?.[actionKey as keyof typeof onQuickActions];
     if (action) {
       action();
       setIsExpanded(false);
       triggerHaptic('medium');
     }
+  };
+
+  const handleVoiceTaskCreated = (result: VoiceTaskResult) => {
+    setVoiceResult(result);
+    setShowVoiceDialog(true);
+  };
+
+  const handleVoiceTaskConfirm = (task: Partial<Task>) => {
+    onVoiceTask?.(task);
+    setShowVoiceDialog(false);
+    setVoiceResult(null);
   };
 
   // Don't render on desktop
@@ -162,18 +195,29 @@ export function MobileFloatingActionButton({
                     </motion.div>
 
                     {/* Action Button */}
-                    <motion.button
-                      onClick={() => handleQuickAction(action.key)}
-                      className={cn(
-                        'w-12 h-12 rounded-full shadow-lg text-white transition-all duration-200',
-                        'flex items-center justify-center',
-                        action.color
-                      )}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <Icon size={20} />
-                    </motion.button>
+                    {action.key === 'voiceTask' ? (
+                      <VoiceRecordingButton
+                        variant="mini"
+                        onTaskCreated={handleVoiceTaskCreated}
+                        className={cn(
+                          'w-12 h-12 shadow-lg transition-all duration-200',
+                          action.color
+                        )}
+                      />
+                    ) : (
+                      <motion.button
+                        onClick={() => handleQuickAction(action.key)}
+                        className={cn(
+                          'w-12 h-12 rounded-full shadow-lg text-white transition-all duration-200',
+                          'flex items-center justify-center',
+                          action.color
+                        )}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <Icon size={20} />
+                      </motion.button>
+                    )}
                   </motion.div>
                 );
               })}
@@ -281,6 +325,17 @@ export function MobileFloatingActionButton({
           </motion.div>
         )}
       </div>
+
+      {/* Voice Task Dialog */}
+      {voiceResult && (
+        <VoiceTaskDialog
+          isOpen={showVoiceDialog}
+          onClose={() => setShowVoiceDialog(false)}
+          voiceResult={voiceResult}
+          onConfirm={handleVoiceTaskConfirm}
+          onEdit={() => {/* Handle edit if needed */}}
+        />
+      )}
     </>
   );
 }
