@@ -193,6 +193,154 @@
     outline: 2px solid oklch(var(--ring));
     outline-offset: 2px;
   }
+  
+  /* Mobile-specific styles */
+  @media (max-width: 768px) {
+    /* Improved touch targets */
+    button, 
+    [role="button"],
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Better scrolling on mobile */
+    body {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    
+    /* Prevent zoom on input focus */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    textarea,
+    select {
+      font-size: 16px;
+    }
+    
+    /* Safe area support */
+    .safe-area-pt {
+      padding-top: env(safe-area-inset-top);
+    }
+    
+    .safe-area-pb {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .safe-area-pl {
+      padding-left: env(safe-area-inset-left);
+    }
+    
+    .safe-area-pr {
+      padding-right: env(safe-area-inset-right);
+    }
+  }
+  
+  /* Gesture feedback */
+  .touch-feedback {
+    transition: transform 0.1s ease-out;
+  }
+  
+  .touch-feedback:active {
+    transform: scale(0.95);
+  }
+  
+  /* Swipe indicators */
+  .swipe-indicator {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .swipe-indicator::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      oklch(var(--primary) / 0.3) 50%,
+      transparent 100%
+    );
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  .swipe-indicator:hover::after {
+    opacity: 1;
+  }
+  
+  /* Gesture hints */
+  .gesture-hint {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
+  /* Haptic feedback simulation */
+  .haptic-light {
+    animation: haptic-light 0.1s ease-out;
+  }
+  
+  .haptic-medium {
+    animation: haptic-medium 0.15s ease-out;
+  }
+  
+  .haptic-heavy {
+    animation: haptic-heavy 0.2s ease-out;
+  }
+  
+  @keyframes haptic-light {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes haptic-medium {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.05); }
+    75% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes haptic-heavy {
+    0% { transform: scale(1); }
+    20% { transform: scale(1.08); }
+    40% { transform: scale(0.95); }
+    60% { transform: scale(1.03); }
+    80% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .haptic-light,
+    .haptic-medium, 
+    .haptic-heavy,
+    .gesture-hint {
+      animation: none;
+    }
+    
+    .touch-feedback {
+      transition: none;
+    }
+    
+    .touch-feedback:active {
+      transform: none;
+    }
+  }
 }
 
 @layer base {

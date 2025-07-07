@@ -1,6 +1,14 @@
 import { Button } from '@/components/ui/button';
+import { AnimatedButton } from '@/components/ui/animated-button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { 
   Menu, 
   Plus, 
@@ -9,21 +17,31 @@ import {
   Moon, 
   Monitor,
   Bell,
-  Settings
+  Settings,
+  Download,
+  FileText,
+  Table,
+  Code,
+  CheckCircle2,
+  Calendar,
+  Briefcase
 } from 'lucide-react';
 import { useTodoStore } from '../store/todoStore';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { exportTasksAsJSON, exportTasksAsCSV, exportTasksAsMarkdown } from '../lib/exportUtils';
 
 interface HeaderProps {
   onMenuClick: () => void;
   onCreateTask: () => void;
   theme: 'light' | 'dark' | 'system';
   onToggleTheme: () => void;
+  currentView?: 'tasks' | 'calendar' | 'kanban';
+  onViewChange?: (view: 'tasks' | 'calendar' | 'kanban') => void;
 }
 
-export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme }: HeaderProps) {
-  const { filters, setFilters, getPendingTasksCount, getCompletedTasksCount } = useTodoStore();
+export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme, currentView = 'tasks', onViewChange }: HeaderProps) {
+  const { filters, setFilters, getPendingTasksCount, getCompletedTasksCount, tasks, categories } = useTodoStore();
   const [searchValue, setSearchValue] = useState(filters.search || '');
 
   const pendingCount = getPendingTasksCount();
@@ -45,6 +63,20 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme }: Head
     }
   };
 
+  const handleExport = (format: 'json' | 'csv' | 'markdown') => {
+    switch (format) {
+      case 'json':
+        exportTasksAsJSON(tasks, categories);
+        break;
+      case 'csv':
+        exportTasksAsCSV(tasks, categories);
+        break;
+      case 'markdown':
+        exportTasksAsMarkdown(tasks, categories);
+        break;
+    }
+  };
+
   return (
     <motion.header 
       className="flex items-center justify-between px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-30"
@@ -54,14 +86,15 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme }: Head
     >
       {/* Left Section */}
       <div className="flex items-center gap-4">
-        <Button
+        <AnimatedButton
           variant="ghost"
           size="icon"
           onClick={onMenuClick}
           className="lg:hidden hover:bg-primary/10"
+          animationType="hover"
         >
           <Menu size={20} />
-        </Button>
+        </AnimatedButton>
         
         <div className="flex items-center gap-3">
           <motion.h1 
@@ -104,12 +137,47 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme }: Head
 
       {/* Right Section */}
       <div className="flex items-center gap-2">
+        {/* View Switcher */}
+        <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-lg p-1 mr-2">
+          <AnimatedButton
+            variant={currentView === 'tasks' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange?.('tasks')}
+            className="gap-2 h-7 px-2"
+            animationType="tap"
+          >
+            <CheckCircle2 size={14} />
+            Tasks
+          </AnimatedButton>
+          <AnimatedButton
+            variant={currentView === 'calendar' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange?.('calendar')}
+            className="gap-2 h-7 px-2"
+            animationType="tap"
+          >
+            <Calendar size={14} />
+            Calendar
+          </AnimatedButton>
+          <AnimatedButton
+            variant={currentView === 'kanban' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange?.('kanban')}
+            className="gap-2 h-7 px-2"
+            animationType="tap"
+          >
+            <Briefcase size={14} />
+            Kanban
+          </AnimatedButton>
+        </div>
+
         {/* Theme Toggle */}
-        <Button
+        <AnimatedButton
           variant="ghost"
           size="icon"
           onClick={onToggleTheme}
           className="hover:bg-primary/10"
+          animationType="hover"
         >
           <motion.div
             key={theme}
@@ -119,41 +187,71 @@ export function Header({ onMenuClick, onCreateTask, theme, onToggleTheme }: Head
           >
             {getThemeIcon()}
           </motion.div>
-        </Button>
+        </AnimatedButton>
 
         {/* Notifications */}
-        <Button
+        <AnimatedButton
           variant="ghost"
           size="icon"
           className="hover:bg-primary/10 hidden sm:flex"
+          animationType="hover"
         >
           <Bell size={20} />
-        </Button>
+        </AnimatedButton>
+
+        {/* Export Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <AnimatedButton
+              variant="ghost"
+              size="icon"
+              className="hover:bg-primary/10 hidden sm:flex"
+              animationType="hover"
+            >
+              <Download size={20} />
+            </AnimatedButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleExport('json')}>
+              <Code size={16} className="mr-2" />
+              Export as JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('csv')}>
+              <Table size={16} className="mr-2" />
+              Export as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('markdown')}>
+              <FileText size={16} className="mr-2" />
+              Export as Markdown
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1 text-xs text-muted-foreground">
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} total
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Settings */}
-        <Button
+        <AnimatedButton
           variant="ghost"
           size="icon"
           className="hover:bg-primary/10 hidden sm:flex"
+          animationType="hover"
         >
           <Settings size={20} />
-        </Button>
+        </AnimatedButton>
 
         {/* Create Task FAB */}
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <AnimatedButton
+          onClick={onCreateTask}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl"
+          size="sm"
+          animationType="elastic"
         >
-          <Button
-            onClick={onCreateTask}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200"
-            size="sm"
-          >
-            <Plus size={16} className="mr-1" />
-            <span className="hidden sm:inline">Add Task</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
-        </motion.div>
+          <Plus size={16} className="mr-1" />
+          <span className="hidden sm:inline">Add Task</span>
+          <span className="sm:hidden">Add</span>
+        </AnimatedButton>
       </div>
     </motion.header>
   );
