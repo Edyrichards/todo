@@ -1,0 +1,48 @@
+{
+  "name": "todo-app-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "husky",
+    "frontend:dev": "cd material-todo-app && bun run dev",
+    "frontend:build": "cd material-todo-app && bun run build",
+    "frontend:test": "cd material-todo-app && bun run test",
+    "frontend:lint": "cd material-todo-app && bun run lint",
+    "frontend:analyze": "cd material-todo-app && bun run analyze:build",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:build": "cd backend && npm run build",
+    "backend:test": "cd backend && npm run test",
+    "backend:lint": "cd backend && npm run lint",
+    "setup:backend": "./dev-setup.sh start",
+    "setup:full": "./dev-setup.sh start && cd material-todo-app && bun install && cd ../backend && npm install",
+    "dev": "concurrently \"bun run frontend:dev\" \"bun run backend:dev\"",
+    "test:all": "bun run frontend:test && bun run backend:test",
+    "lint:all": "bun run frontend:lint && bun run backend:lint"
+  },
+  "workspaces": [
+    "material-todo-app",
+    "backend"
+  ],
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "concurrently": "^8.2.2"
+  },
+  "lint-staged": {
+    "material-todo-app/**/*.{ts,tsx,js,jsx}": [
+      "cd material-todo-app && bun run lint:fix",
+      "cd material-todo-app && bun run format"
+    ],
+    "material-todo-app/**/*.{json,md}": [
+      "cd material-todo-app && bun run format"
+    ],
+    "backend/**/*.{ts,js}": [
+      "cd backend && npm run lint -- --fix",
+      "cd backend && npm run format"
+    ],
+    "backend/**/*.{json,md}": [
+      "cd backend && npm run format"
+    ]
+  }
+}

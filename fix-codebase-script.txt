@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# 🔧 Todo App Codebase Fix Script
+# This script applies all the critical fixes identified in the codebase review
+
+set -e
+
+echo "🔧 Todo App Codebase Fix Script"
+echo "==============================="
+
+# Check if we're in the right directory
+if [ ! -d "todo-app-fixed" ] || [ ! -d "material-todo-app" ]; then
+    echo "❌ Please run this script from the main todo directory"
+    echo "   (Should contain todo-app-fixed/ and material-todo-app/ directories)"
+    exit 1
+fi
+
+echo "📋 Applying critical fixes to ensure smooth setup..."
+
+# =============================================================================
+# FIX 1: Basic Version Package.json Cleanup
+# =============================================================================
+echo ""
+echo "🔧 Fix 1: Cleaning up basic version dependencies..."
+
+if [ -f "todo-app-fixed/package.json" ]; then
+    # Backup original
+    cp todo-app-fixed/package.json todo-app-fixed/package.json.backup
+    echo "   ✅ Backed up original package.json"
+    
+    # Apply fixed package.json
+    if [ -f "fixed-package-basic.json" ]; then
+        cp fixed-package-basic.json todo-app-fixed/package.json
+        echo "   ✅ Applied cleaned package.json for basic version"
+    else
+        echo "   ⚠️  Fixed package.json not found, skipping"
+    fi
+else
+    echo "   ⚠️  Basic version package.json not found"
+fi
+
+# =============================================================================
+# FIX 2: Full Version Package.json Fixes
+# =============================================================================
+echo ""
+echo "🔧 Fix 2: Fixing full version package.json issues..."
+
+if [ -f "material-todo-app/package.json" ]; then
+    # Backup original
+    cp material-todo-app/package.json material-todo-app/package.json.backup
+    echo "   ✅ Backed up original package.json"
+    
+    # Apply fixed package.json
+    if [ -f "fixed-package-full.json" ]; then
+        cp fixed-package-full.json material-todo-app/package.json
+        echo "   ✅ Applied fixed package.json for full version"
+    else
+        echo "   ⚠️  Fixed package.json not found, skipping"
+    fi
+else
+    echo "   ⚠️  Full version package.json not found"
+fi
+
+# =============================================================================
+# FIX 3: Import Path Fix for Basic Version
+# =============================================================================
+echo ""
+echo "🔧 Fix 3: Fixing import paths in basic version..."
+
+if [ -f "todo-app-fixed/src/store/todoStore.ts" ]; then
+    # Backup original
+    cp todo-app-fixed/src/store/todoStore.ts todo-app-fixed/src/store/todoStore.ts.backup
+    echo "   ✅ Backed up original todoStore.ts"
+    
+    # Fix import path
+    sed -i.tmp "s|from '../../shared/types'|from '../shared/types'|g" todo-app-fixed/src/store/todoStore.ts
+    rm -f todo-app-fixed/src/store/todoStore.ts.tmp
+    echo "   ✅ Fixed import path in todoStore.ts"
+else
+    echo "   ⚠️  todoStore.ts not found"
+fi
+
+# Clean node_modules and lock files
+echo ""
+echo "🔧 Cleaning for fresh installs..."
+
+for dir in "todo-app-fixed" "material-todo-app"; do
+    if [ -d "$dir" ]; then
+        rm -rf "$dir/node_modules" "$dir/package-lock.json" "$dir/bun.lock"
+        echo "   ✅ Cleaned $dir"
+    fi
+done
+
+echo ""
+echo "🎉 Fixes Applied Successfully!"
+echo "Ready for setup! 🎯"
