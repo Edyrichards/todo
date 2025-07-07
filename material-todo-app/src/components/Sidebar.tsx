@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { AnimatedButton } from '@/components/ui/animated-button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,12 +20,15 @@ import {
   Heart
 } from 'lucide-react';
 import { useTodoStore } from '../store/todoStore';
+import { PWAStatus } from './PWAStatus';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  currentView?: 'tasks' | 'calendar' | 'kanban';
+  onViewChange?: (view: 'tasks' | 'calendar' | 'kanban') => void;
 }
 
 const iconMap = {
@@ -38,7 +42,7 @@ const iconMap = {
   circle: Circle,
 };
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, currentView = 'tasks', onViewChange }: SidebarProps) {
   const { 
     categories, 
     selectedCategory, 
@@ -130,18 +134,79 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <h2 className="font-semibold text-lg">Navigation</h2>
-                <Button
+                <AnimatedButton
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
                   className="lg:hidden"
+                  animationType="hover"
                 >
                   <X size={16} />
-                </Button>
+                </AnimatedButton>
               </div>
 
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-6">
+                  {/* View Navigation */}
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Views</h3>
+                    <div className="space-y-1">
+                      <motion.div
+                        whileHover={{ x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <AnimatedButton
+                          variant={currentView === 'tasks' ? 'secondary' : 'ghost'}
+                          className={cn(
+                            'w-full justify-start gap-3 h-10',
+                            currentView === 'tasks' && 'bg-primary/10 text-primary'
+                          )}
+                          onClick={() => onViewChange?.('tasks')}
+                          animationType="tap"
+                        >
+                          <CheckCircle2 size={18} />
+                          <span className="flex-1 text-left">Tasks</span>
+                        </AnimatedButton>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <AnimatedButton
+                          variant={currentView === 'calendar' ? 'secondary' : 'ghost'}
+                          className={cn(
+                            'w-full justify-start gap-3 h-10',
+                            currentView === 'calendar' && 'bg-primary/10 text-primary'
+                          )}
+                          onClick={() => onViewChange?.('calendar')}
+                          animationType="tap"
+                        >
+                          <Calendar size={18} />
+                          <span className="flex-1 text-left">Calendar</span>
+                        </AnimatedButton>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <AnimatedButton
+                          variant={currentView === 'kanban' ? 'secondary' : 'ghost'}
+                          className={cn(
+                            'w-full justify-start gap-3 h-10',
+                            currentView === 'kanban' && 'bg-primary/10 text-primary'
+                          )}
+                          onClick={() => onViewChange?.('kanban')}
+                          animationType="tap"
+                        >
+                          <Briefcase size={18} />
+                          <span className="flex-1 text-left">Kanban</span>
+                        </AnimatedButton>
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
                   {/* Quick Access */}
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">Quick Access</h3>
@@ -255,6 +320,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   </div>
                 </div>
               </ScrollArea>
+              
+              {/* PWA Status */}
+              <div className="p-4 border-t border-border">
+                <PWAStatus />
+              </div>
             </div>
           </motion.aside>
         </>
